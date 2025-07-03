@@ -1,0 +1,29 @@
+[package]
+name = "mobius-ecs"
+version = "0.1.0"
+edition = "2021"
+description = "ECS-based UI templating framework for egui applications"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+eframe = "0.31.1"
+egui = "0.31.1"
+bevy_ecs = "0.14"
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10.3"
+egui_extras = "0.31.1"
+image = "0.25.6"
+egui_tool_windows = "0.1.3"
+egui_dock = {version = "0.16.0", features=["serde"]}
+
+[dev-dependencies]
+env_logger = "0.10"
+
+[[bin]]
+name = "mobius"
+path = "src/bin/mobius.rs"
+
+[[example]]
+name = "demo"
+path = "examples/demo.rs"
