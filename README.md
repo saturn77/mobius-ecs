@@ -2,7 +2,7 @@
 
 # mobius-ecs
 
-*ECS-based UI templating framework for egui applications*
+*ECS-based UI framework for egui applications*
 
 [![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/saturn77/mobius-ecs)
 [![Author](https://img.shields.io/badge/author-saturn77-orange)](https://github.com/saturn77)
