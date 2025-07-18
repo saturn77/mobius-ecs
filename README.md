@@ -27,7 +27,7 @@ The overall goal of mobius-ecs is to provide a powerful, flexible framework for 
 - **Template System**: Develop a robust templating system that allows developers to define UI structures and behaviors declaratively.
 - **Visual Designer**: Implement a visual design tool that simplifies UI creation and allows for real-time preview and editing of interfaces.
 - **ECS Integration**: Leverage the ECS architecture to enable data-driven UI development, where UI components can be dynamically created and modified based on application state.
-- **egui Foundation**: Build on the egui framework to provide a modern, responsive UI experience with support for advanced features like docking, drag-and-drop, and real-time updates. egui is considered best in class for Rust GUI development, providing a simple and efficient way to create **Enterprise Level, Desktop** applications.
+- **egui Foundation**: Build on the egui framework to provide a modern, responsive UI experience with support for advanced features like docking, drag-and-drop, and real-time updates. egui is considered best in class for Rust GUI development, providing a simple and efficient way to create **Enterprise Level, Desktop** applications within the Rust ecosystem. 
 
 
 ## Features
