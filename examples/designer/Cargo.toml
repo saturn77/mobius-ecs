@@ -1,0 +1,18 @@
+[package]
+name = "mobius-ui-designer"
+version = "0.1.0"
+edition = "2021"
+description = "Qt Designer-like UI designer for Mobius ECS applications"
+
+[dependencies]
+eframe = "0.32"
+egui = "0.32"
+bevy_ecs = "0.14"
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10.3"
+egui_extras = "0.32"
+image = "0.25.6"
+egui_dock = {version = "0.17.0", features=["serde"]}
+mobius-ecs = { path = "../.." }
+env_logger = "0.10"

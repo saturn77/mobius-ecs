@@ -363,18 +363,24 @@ pub fn show_settings_panel(ui: &mut Ui, world: &mut World) {
                 }
             });
             
-            // Show current time in selected timezone with chosen format
-            let time_format = if settings.use_24_hour_clock { "%Y-%m-%d %H:%M:%S %Z" } else { "%Y-%m-%d %I:%M:%S %p %Z" };
-            
-            if let Some(tz_name) = &settings.user_timezone {
-                if let Ok(tz) = tz_name.parse::<Tz>() {
-                    let now = Local::now().with_timezone(&tz);
-                    ui.label(format!("Current time: {}", now.format(time_format)));
+            // Show current time in selected timezone with chosen format (auto-updating)
+            ui.group(|ui| {
+                ui.label("🕐 Live Clock:");
+                let time_format = if settings.use_24_hour_clock { "%Y-%m-%d %H:%M:%S %Z" } else { "%Y-%m-%d %I:%M:%S %p %Z" };
+                
+                if let Some(tz_name) = &settings.user_timezone {
+                    if let Ok(tz) = tz_name.parse::<Tz>() {
+                        let now = Local::now().with_timezone(&tz);
+                        ui.colored_label(egui::Color32::from_rgb(100, 255, 100), format!("{}", now.format(time_format)));
+                    }
+                } else {
+                    let now = Local::now();
+                    ui.colored_label(egui::Color32::from_rgb(100, 255, 100), format!("{}", now.format(if settings.use_24_hour_clock { "%Y-%m-%d %H:%M:%S" } else { "%Y-%m-%d %I:%M:%S %p" })));
                 }
-            } else {
-                let now = Local::now();
-                ui.label(format!("Current time: {}", now.format(if settings.use_24_hour_clock { "%Y-%m-%d %H:%M:%S" } else { "%Y-%m-%d %I:%M:%S %p" })));
-            }
+            });
+            
+            // Request repaint every second to update the clock
+            ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
         });
         
         ui.add_space(20.0);
@@ -389,10 +395,10 @@ pub fn show_settings_panel(ui: &mut Ui, world: &mut World) {
                     .selected_text(&settings.interface_language)
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut settings.interface_language, "English".to_string(), "English");
-                        ui.add_enabled(false, egui::SelectableLabel::new(false, "Français (coming soon)"));
-                        ui.add_enabled(false, egui::SelectableLabel::new(false, "Deutsch (coming soon)"));
-                        ui.add_enabled(false, egui::SelectableLabel::new(false, "中文 (coming soon)"));
-                        ui.add_enabled(false, egui::SelectableLabel::new(false, "日本語 (coming soon)"));
+                        ui.add_enabled(false, egui::Label::new("Français (coming soon)"));
+                        ui.add_enabled(false, egui::Label::new("Deutsch (coming soon)"));
+                        ui.add_enabled(false, egui::Label::new("中文 (coming soon)"));
+                        ui.add_enabled(false, egui::Label::new("日本語 (coming soon)"));
                     });
             });
         });
@@ -412,11 +418,14 @@ pub fn show_event_logger_panel(ui: &mut Ui, world: &mut World) {
             if ui.button("Clear Logs").clicked() {
                 logger.entries.clear();
             }
-            ui.checkbox(&mut logger.auto_scroll, "Auto-scroll");
+            ui.colored_label(egui::Color32::from_rgb(100, 200, 100), format!("📝 {} entries", logger.entries.len()));
+            ui.separator();
+            ui.colored_label(egui::Color32::from_rgb(150, 150, 150), "⬆️ Newest messages on top");
         });
         
         ui.separator();
         
+        // Scroll area that shows newest messages at top
         egui::ScrollArea::vertical()
             .auto_shrink([false; 2])
             .show(ui, |ui| {

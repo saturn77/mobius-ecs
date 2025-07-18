@@ -18,6 +18,7 @@ impl ToolWindows {
 
 #[derive(Clone, Debug)]
 struct Tab {
+    #[allow(dead_code)]
     name: String,
     kind: TabKind,
 }
@@ -182,19 +183,19 @@ impl MobiusToolWindowsDemo {
         }]);
         
         // Add inspector below controls
-        let [_, below] = surface.split_below(left, 0.5, vec![Tab {
+        let [_, _below] = surface.split_below(left, 0.5, vec![Tab {
             name: "Inspector".to_string(),
             kind: TabKind::Inspector,
         }]);
         
         // Split main area to add settings and logger
-        let [right_top, _] = surface.split_right(NodeIndex::root(), 0.25, vec![Tab {
+        let [_right_top, _] = surface.split_right(NodeIndex::root(), 0.25, vec![Tab {
             name: "Settings".to_string(),
             kind: TabKind::Settings,
         }]);
         
         // Add event logger at the bottom
-        let [_, bottom] = surface.split_below(NodeIndex::root(), 0.7, vec![Tab {
+        let [_, _bottom] = surface.split_below(NodeIndex::root(), 0.7, vec![Tab {
             name: "Event Logger".to_string(),
             kind: TabKind::EventLogger,
         }]);
@@ -264,12 +265,12 @@ impl App for MobiusToolWindowsDemo {
         
         // Top menu bar
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("🆕 New Project").clicked() {
                         self.world.clear_all();
                         self.app_entity = None;
-                        ui.close_menu();
+                        ui.close_kind(egui::UiKind::Menu);
                     }
                     ui.separator();
                     if ui.button("📁 Open...").clicked() {
@@ -287,11 +288,11 @@ impl App for MobiusToolWindowsDemo {
                 ui.menu_button("Templates", |ui| {
                     if ui.button("🔧 Gerber Viewer").clicked() {
                         self.switch_template("gerber_viewer");
-                        ui.close_menu();
+                        ui.close_kind(egui::UiKind::Menu);
                     }
                     if ui.button("📝 Text Editor").clicked() {
                         self.switch_template("text_editor");
-                        ui.close_menu();
+                        ui.close_kind(egui::UiKind::Menu);
                     }
                     ui.separator();
                     ui.label("💡 Switch templates to see different layouts");
@@ -377,7 +378,7 @@ impl App for MobiusToolWindowsDemo {
                         ui.label(format!("Selected Entity: {:?}", entity));
                         
                         // Query for components on this entity
-                        if let Some(entity_ref) = self.world.get_entity(entity) {
+                        if let Some(_entity_ref) = self.world.get_entity(entity) {
                             ui.label("Components:");
                             ui.indent("components", |ui| {
                                 // This is where you'd inspect specific components

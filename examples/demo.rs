@@ -32,13 +32,13 @@ impl App for MobiusDemoApp {
         
         // Top menu bar
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("New Project").clicked() {
                         // Reset and create new project
                         self.world.clear_all();
                         self.app_entity = None;
-                        ui.close_menu();
+                        ui.close_kind(egui::UiKind::Menu);
                     }
                     ui.separator();
                     if ui.button("Exit").clicked() {
@@ -47,15 +47,15 @@ impl App for MobiusDemoApp {
                 });
                 
                 ui.menu_button("Templates", |ui| {
-                    let registry = MobiusTemplateRegistry::default();
+                    let _registry = MobiusTemplateRegistry::default();
                     
                     if ui.button("🔧 Gerber Viewer").clicked() {
                         self.switch_template("gerber_viewer");
-                        ui.close_menu();
+                        ui.close_kind(egui::UiKind::Menu);
                     }
                     if ui.button("📝 Text Editor").clicked() {
                         self.switch_template("text_editor");
-                        ui.close_menu();
+                        ui.close_kind(egui::UiKind::Menu);
                     }
                     
                     ui.separator();
