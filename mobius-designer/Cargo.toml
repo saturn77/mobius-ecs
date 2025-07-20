@@ -1,0 +1,26 @@
+[package]
+name = "mobius-designer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_ecs = "0.14"
+egui = "0.32"
+eframe = "0.32"
+egui_dock = "0.17"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+rand = "0.8"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# For the library
+mobius-ecs = { path = ".." }
+
+[lib]
+name = "mobius_designer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mobius-designer"
+path = "src/main.rs"

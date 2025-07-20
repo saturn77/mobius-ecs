@@ -1,0 +1,180 @@
+{
+  "surfaces": [
+    {
+      "Main": {
+        "nodes": [
+          {
+            "Vertical": {
+              "rect": {
+                "min": {
+                  "x": 0.0,
+                  "y": 22.0
+                },
+                "max": {
+                  "x": 1200.0,
+                  "y": 800.0
+                }
+              },
+              "fraction": 0.58867323,
+              "fully_collapsed": false,
+              "collapsed_leaf_count": 0
+            }
+          },
+          {
+            "Horizontal": {
+              "rect": {
+                "min": {
+                  "x": 0.0,
+                  "y": 22.0
+                },
+                "max": {
+                  "x": 1200.0,
+                  "y": 479.5
+                }
+              },
+              "fraction": 0.3897629,
+              "fully_collapsed": false,
+              "collapsed_leaf_count": 0
+            }
+          },
+          {
+            "Leaf": {
+              "rect": {
+                "min": {
+                  "x": 0.0,
+                  "y": 480.5
+                },
+                "max": {
+                  "x": 1200.0,
+                  "y": 800.0
+                }
+              },
+              "viewport": {
+                "min": {
+                  "x": 0.0,
+                  "y": 504.5
+                },
+                "max": {
+                  "x": 1200.0,
+                  "y": 800.0
+                }
+              },
+              "tabs": [
+                {
+                  "name": "Event Logger",
+                  "kind": "EventLogger",
+                  "id": 4
+                }
+              ],
+              "active": 0,
+              "scroll": 0.0,
+              "collapsed": false
+            }
+          },
+          {
+            "Leaf": {
+              "rect": {
+                "min": {
+                  "x": 0.0,
+                  "y": 22.0
+                },
+                "max": {
+                  "x": 467.0,
+                  "y": 479.5
+                }
+              },
+              "viewport": {
+                "min": {
+                  "x": 0.0,
+                  "y": 46.0
+                },
+                "max": {
+                  "x": 467.0,
+                  "y": 479.5
+                }
+              },
+              "tabs": [
+                {
+                  "name": "Main Work",
+                  "kind": "MainWork",
+                  "id": 0
+                },
+                {
+                  "name": "Controls",
+                  "kind": "Controls",
+                  "id": 2
+                },
+                {
+                  "name": "Settings",
+                  "kind": "Settings",
+                  "id": 3
+                }
+              ],
+              "active": 0,
+              "scroll": 0.0,
+              "collapsed": false
+            }
+          },
+          {
+            "Leaf": {
+              "rect": {
+                "min": {
+                  "x": 468.0,
+                  "y": 22.0
+                },
+                "max": {
+                  "x": 1200.0,
+                  "y": 479.5
+                }
+              },
+              "viewport": {
+                "min": {
+                  "x": 468.0,
+                  "y": 46.0
+                },
+                "max": {
+                  "x": 1200.0,
+                  "y": 479.5
+                }
+              },
+              "tabs": [
+                {
+                  "name": "Inspector",
+                  "kind": "Inspector",
+                  "id": 1
+                }
+              ],
+              "active": 0,
+              "scroll": 0.0,
+              "collapsed": false
+            }
+          },
+          "Empty",
+          "Empty"
+        ],
+        "focused_node": 3,
+        "collapsed": false,
+        "collapsed_leaf_count": 0
+      }
+    }
+  ],
+  "focused_surface": 0,
+  "translations": {
+    "tab_context_menu": {
+      "close_button": "Close",
+      "eject_button": "Eject"
+    },
+    "leaf": {
+      "close_button_disabled_tooltip": "This leaf contains non-closable tabs.",
+      "close_all_button": "Close window",
+      "close_all_button_menu_hint": "Right click to close this window.",
+      "close_all_button_modifier_hint": "Press modifier keys (Shift by default) to close this window.",
+      "close_all_button_modifier_menu_hint": "Press modifier keys (Shift by default) or right click to close this window.",
+      "close_all_button_disabled_tooltip": "This window contains non-closable tabs.",
+      "minimize_button": "Minimize window",
+      "minimize_button_menu_hint": "Right click to minimize this window.",
+      "minimize_button_modifier_hint": "Press modifier keys (Shift by default) to minimize this window.",
+      "minimize_button_modifier_menu_hint": "Press modifier keys (Shift by default) or right click to minimize this window."
+    }
+  }
+}
