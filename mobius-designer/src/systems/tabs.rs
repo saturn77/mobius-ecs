@@ -5,8 +5,9 @@ use crate::components::*;
 use crate::resources::*;
 use crate::utils::*;
 use crate::bundles::*;
+use crate::systems::distribution::*;
 
-pub fn render_tab_content(ui: &mut Ui, world: &mut World, tab: &Tab, edit_mode: &mut bool, renaming_entity: &mut Option<Entity>, rename_buffer: &mut String, show_add_menu: &mut bool, add_menu_pos: &mut egui::Pos2, resizing_entity: &mut Option<Entity>, drag_selection: &mut Option<crate::integration::DragSelection>) {
+pub fn render_tab_content(ui: &mut Ui, world: &mut World, tab: &Tab, renaming_entity: &mut Option<Entity>, rename_buffer: &mut String, show_add_menu: &mut bool, add_menu_pos: &mut egui::Pos2, resizing_entity: &mut Option<Entity>, drag_selection: &mut Option<crate::integration::DragSelection>, codegen_state: Option<&mut crate::events::CodeGenState>, file_dialog: &mut egui_file_dialog::FileDialog) {
     match tab.kind {
         TabKind::MainWork => {
             // Main work tab - just render the designer UI elements
@@ -21,29 +22,22 @@ pub fn render_tab_content(ui: &mut Ui, world: &mut World, tab: &Tab, edit_mode: 
                 }
             };
             
-            if *edit_mode {
-                ui.colored_label(egui::Color32::from_rgb(0, 255, 0), "✏️ Edit Mode - Drag elements to move them");
-            } else {
-                ui.colored_label(egui::Color32::from_rgb(150, 150, 150), "👁 View Mode - Right-click to enable Edit Mode");
-            }
+            ui.colored_label(egui::Color32::from_rgb(0, 255, 0), "✏️ Design Mode - Drag elements to move them");
             
             // First render UI elements
             crate::systems::render_dynamic_ui_elements(
                 ui, 
                 world, 
-                *edit_mode, 
                 &grid_settings,
                 renaming_entity,
                 rename_buffer,
                 resizing_entity
             );
             
-            // Handle drag selection in edit mode - only in the main work area
-            if *edit_mode {
-                // Create a response for the main work area only
-                let work_area_response = ui.allocate_response(ui.available_size(), egui::Sense::click_and_drag());
-                handle_drag_selection_in_work_area(work_area_response, world, drag_selection);
-            }
+            // Handle drag selection - always enabled in design tool
+            // Create a response for the main work area only
+            let work_area_response = ui.allocate_response(ui.available_size(), egui::Sense::click_and_drag());
+            handle_drag_selection_in_work_area(work_area_response, world, drag_selection);
             
             // Handle right-click to show add menu
             if ui.input(|i| i.pointer.button_clicked(egui::PointerButton::Secondary)) {
@@ -60,32 +54,61 @@ pub fn render_tab_content(ui: &mut Ui, world: &mut World, tab: &Tab, edit_mode: 
                     .collapsible(false)
                     .resizable(false)
                     .title_bar(false)
-                    .fixed_size(egui::Vec2::new(150.0, 0.0))
+                    .fixed_size(egui::Vec2::new(350.0, 0.0))
                     .show(ui.ctx(), |ui| {
-                        // Edit mode toggle
-                        let edit_text = if *edit_mode { "🔒 Switch to View Mode" } else { "✏️ Switch to Edit Mode" };
-                        if ui.button(edit_text).clicked() {
-                            *edit_mode = !*edit_mode;
-                            add_designer_log(world, if *edit_mode { "Entered edit mode" } else { "Entered view mode" });
-                            *show_add_menu = false;
-                        }
-                        
-                        ui.separator();
                         
                         // Distribution options (only show if multiple elements are selected)
                         let selected_count = count_selected_elements(world);
                         if selected_count > 1 {
-                            ui.label("Distribute Selected:");
-                            if ui.button("↕️ Distribute Vertically").clicked() {
-                                distribute_elements_vertically(world);
-                                add_designer_log(world, &format!("Distributed {} elements vertically", selected_count));
-                                *show_add_menu = false;
-                            }
-                            if ui.button("↔️ Distribute Horizontally").clicked() {
-                                distribute_elements_horizontally(world);
-                                add_designer_log(world, &format!("Distributed {} elements horizontally", selected_count));
-                                *show_add_menu = false;
-                            }
+                            ui.columns(3, |columns| {
+                                // First column - Design tool mode
+                                columns[0].label("Mode:");
+                                columns[0].label("✏️ Design");
+                                
+                                // Second column - Distribute
+                                columns[1].label("Distribute:");
+                                if columns[1].button("↕️ Vert").clicked() {
+                                    let settings = if let Some(settings) = world.get_resource::<DistributionSettings>() {
+                                        settings.clone()
+                                    } else {
+                                        DistributionSettings::new()
+                                    };
+                                    distribute_items_vertically(world, &settings);
+                                    *show_add_menu = false;
+                                }
+                                if columns[1].button("↔️ Horiz").clicked() {
+                                    let settings = if let Some(settings) = world.get_resource::<DistributionSettings>() {
+                                        settings.clone()
+                                    } else {
+                                        DistributionSettings::new()
+                                    };
+                                    distribute_items_horizontally(world, &settings);
+                                    *show_add_menu = false;
+                                }
+                                
+                                // Third column - Align
+                                columns[2].label("Align:");
+                                if columns[2].button("⬅️ L").clicked() {
+                                    align_selected_elements_left(world);
+                                    *show_add_menu = false;
+                                }
+                                if columns[2].button("➡️ R").clicked() {
+                                    align_selected_elements_right(world);
+                                    *show_add_menu = false;
+                                }
+                                if columns[2].button("⬆️ T").clicked() {
+                                    align_selected_elements_top(world);
+                                    *show_add_menu = false;
+                                }
+                                if columns[2].button("⬇️ B").clicked() {
+                                    align_selected_elements_bottom(world);
+                                    *show_add_menu = false;
+                                }
+                            });
+                            ui.separator();
+                        } else {
+                            // When no multiple selection, show design mode status
+                            ui.label("✏️ Design Mode - Select elements to distribute/align");
                             ui.separator();
                         }
                         
@@ -142,6 +165,9 @@ pub fn render_tab_content(ui: &mut Ui, world: &mut World, tab: &Tab, edit_mode: 
         }
         TabKind::Inspector => {
             render_inspector_panel(ui, world);
+        }
+        TabKind::Preview => {
+            render_preview_panel(ui, world, codegen_state, file_dialog);
         }
     }
 }
@@ -203,40 +229,234 @@ fn render_designer_controls_panel(ui: &mut Ui, world: &mut World) {
                 ui.label(format!("{} elements selected", selected_count));
                 
                 if selected_count > 1 {
+                    // Get distribution settings from world resource
+                    let settings = if let Some(settings) = world.get_resource::<DistributionSettings>() {
+                        settings.clone()
+                    } else {
+                        DistributionSettings::new()
+                    };
+                    
                     ui.horizontal(|ui| {
                         if ui.button("↕️ Distribute Vertically").clicked() {
-                            distribute_elements_vertically(world);
-                            add_designer_log(world, &format!("Distributed {} elements vertically", selected_count));
+                            distribute_items_vertically(world, &settings);
                         }
                         if ui.button("↔️ Distribute Horizontally").clicked() {
-                            distribute_elements_horizontally(world);
-                            add_designer_log(world, &format!("Distributed {} elements horizontally", selected_count));
+                            distribute_items_horizontally(world, &settings);
                         }
                     });
                     
                     ui.horizontal(|ui| {
                         if ui.button("⬅️ Align Left").clicked() {
-                            align_elements_left(world);
-                            add_designer_log(world, &format!("Aligned {} elements to left", selected_count));
+                            align_selected_elements_left(world);
                         }
                         if ui.button("➡️ Align Right").clicked() {
-                            align_elements_right(world);
-                            add_designer_log(world, &format!("Aligned {} elements to right", selected_count));
+                            align_selected_elements_right(world);
                         }
                     });
                     
                     ui.horizontal(|ui| {
                         if ui.button("⬆️ Align Top").clicked() {
-                            align_elements_top(world);
-                            add_designer_log(world, &format!("Aligned {} elements to top", selected_count));
+                            align_selected_elements_top(world);
                         }
                         if ui.button("⬇️ Align Bottom").clicked() {
-                            align_elements_bottom(world);
-                            add_designer_log(world, &format!("Aligned {} elements to bottom", selected_count));
+                            align_selected_elements_bottom(world);
                         }
                     });
                 }
             }
+        });
+        
+        ui.add_space(10.0);
+        
+        // Layout Organization section
+        ui.group(|ui| {
+            ui.label("Layout Organization");
+            ui.separator();
+            
+            if selected_count == 0 {
+                ui.label("Select elements to organize layout");
+            } else if selected_count == 1 {
+                ui.label("Select 2+ elements for layout organization");
+            } else {
+                ui.label(format!("Organize {} selected elements", selected_count));
+                
+                ui.horizontal(|ui| {
+                    if ui.button("📄 Column Layout").clicked() {
+                        arrange_elements_in_column(world);
+                        add_designer_log(world, &format!("Arranged {} elements in column layout", selected_count));
+                    }
+                    if ui.button("📰 Row Layout").clicked() {
+                        arrange_elements_in_row(world);
+                        add_designer_log(world, &format!("Arranged {} elements in row layout", selected_count));
+                    }
+                });
+                
+                ui.horizontal(|ui| {
+                    ui.label("Layout Spacing:");
+                    let mut layout_spacing = ui.ctx().memory(|mem| {
+                        mem.data.get_temp(egui::Id::new("layout_spacing")).unwrap_or(20.0f32)
+                    });
+                    
+                    if ui.add(egui::DragValue::new(&mut layout_spacing).prefix("Gap: ").range(0.0..=100.0)).changed() {
+                        ui.ctx().memory_mut(|mem| {
+                            mem.data.insert_temp(egui::Id::new("layout_spacing"), layout_spacing);
+                        });
+                    }
+                });
+            }
+        });
+        
+        ui.add_space(10.0);
+        
+        // Distribution Spacing Settings
+        ui.group(|ui| {
+            ui.label("Distribution Spacing");
+            ui.separator();
+            
+            // Get or create distribution settings
+            if world.get_resource::<DistributionSettings>().is_none() {
+                world.insert_resource(DistributionSettings::new());
+            }
+            
+            // Check if we have multiple selected elements
+            let selected_count = count_selected_elements(world);
+            if selected_count < 2 {
+                ui.label("Select 2+ elements to adjust spacing");
+                
+                // Still show the sliders but disabled
+                let settings = world.get_resource::<DistributionSettings>().unwrap();
+                ui.add_enabled_ui(false, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Horizontal Spacing:");
+                        let mut temp = settings.horizontal_spacing;
+                        ui.add(egui::Slider::new(&mut temp, 10.0..=500.0));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Vertical Spacing:");
+                        let mut temp = settings.vertical_spacing;
+                        ui.add(egui::Slider::new(&mut temp, 10.0..=500.0));
+                    });
+                });
+            } else {
+                ui.label(format!("{} elements selected", selected_count));
+                
+                // Horizontal spacing slider
+                let mut horizontal_changed = false;
+                let mut new_horizontal_spacing = 0.0;
+                {
+                    let mut settings = world.get_resource_mut::<DistributionSettings>().unwrap();
+                    let mut temp_horizontal = settings.horizontal_spacing;
+                    ui.horizontal(|ui| {
+                        ui.label("Horizontal Spacing:");
+                        if ui.add(egui::Slider::new(&mut temp_horizontal, 10.0..=500.0)).changed() {
+                            settings.horizontal_spacing = temp_horizontal;
+                            new_horizontal_spacing = temp_horizontal;
+                            horizontal_changed = true;
+                        }
+                    });
+                }
+                
+                if horizontal_changed {
+                    let settings = world.get_resource::<DistributionSettings>().unwrap().clone();
+                    distribute_items_horizontally(world, &settings);
+                }
+                
+                // Vertical spacing slider
+                let mut vertical_changed = false;
+                let mut new_vertical_spacing = 0.0;
+                {
+                    let mut settings = world.get_resource_mut::<DistributionSettings>().unwrap();
+                    let mut temp_vertical = settings.vertical_spacing;
+                    ui.horizontal(|ui| {
+                        ui.label("Vertical Spacing:");
+                        if ui.add(egui::Slider::new(&mut temp_vertical, 10.0..=500.0)).changed() {
+                            settings.vertical_spacing = temp_vertical;
+                            new_vertical_spacing = temp_vertical;
+                            vertical_changed = true;
+                        }
+                    });
+                }
+                
+                if vertical_changed {
+                    let settings = world.get_resource::<DistributionSettings>().unwrap().clone();
+                    distribute_items_vertically(world, &settings);
+                }
+            }
+        });
+        
+        ui.add_space(10.0);
+        
+        // Add UI Elements section
+        ui.group(|ui| {
+            ui.label("Add UI Elements");
+            ui.separator();
+            
+            // Get the current tab kind for adding elements
+            let current_tab = TabKind::MainWork; // Default to MainWork tab
+            
+            ui.horizontal(|ui| {
+                if ui.button("➕ Add Button").clicked() {
+                    add_ui_element_at_position_in_tab(world, "button", 100.0, 100.0, current_tab.clone());
+                }
+                if ui.button("📝 Add Text Input").clicked() {
+                    add_ui_element_at_position_in_tab(world, "text_input", 100.0, 100.0, current_tab.clone());
+                }
+            });
+            
+            ui.horizontal(|ui| {
+                if ui.button("☑️ Add Checkbox").clicked() {
+                    add_ui_element_at_position_in_tab(world, "checkbox", 100.0, 100.0, current_tab.clone());
+                }
+                if ui.button("🔘 Add Radio Button").clicked() {
+                    add_ui_element_at_position_in_tab(world, "radio_button", 100.0, 100.0, current_tab.clone());
+                }
+            });
+            
+            if ui.button("📦 Add Group Box").clicked() {
+                add_ui_element_at_position_in_tab(world, "group_box", 100.0, 100.0, current_tab);
+            }
+        });
+        
+        ui.add_space(10.0);
+        
+        // Code Generation section
+        ui.group(|ui| {
+            ui.label("Code Generation");
+            ui.separator();
+            
+            ui.horizontal(|ui| {
+                if ui.button("🦀 Generate Rust Code").clicked() {
+                    let generated_code = crate::codegen::CodeGenerator::generate_full_app_code(world);
+                    
+                    // Save to clipboard
+                    ui.ctx().copy_text(generated_code.clone());
+                    
+                    // Also save to file
+                    if let Err(e) = std::fs::write("generated_app.rs", &generated_code) {
+                        add_designer_log(world, &format!("Failed to save generated code: {}", e));
+                    } else {
+                        add_designer_log(world, "Generated Rust/egui code saved to generated_app.rs and copied to clipboard");
+                    }
+                }
+                
+                if ui.button("📋 Generate Panel Function").clicked() {
+                    let panel_code = crate::codegen::CodeGenerator::generate_panel_function(world, "Generated");
+                    
+                    // Save to clipboard
+                    ui.ctx().copy_text(panel_code.clone());
+                    
+                    // Also save to file
+                    if let Err(e) = std::fs::write("generated_panel.rs", &panel_code) {
+                        add_designer_log(world, &format!("Failed to save panel code: {}", e));
+                    } else {
+                        add_designer_log(world, "Generated panel function saved to generated_panel.rs and copied to clipboard");
+                    }
+                }
+            });
+            
+            ui.horizontal(|ui| {
+                ui.label("💡 Tip: Generated code is copied to clipboard and saved to file");
+            });
         });
     } else {
         ui.label("No designer controls panel found");
@@ -265,8 +485,11 @@ fn render_inspector_panel(ui: &mut Ui, world: &mut World) {
         ui.separator();
         ui.label("No items selected.");
         ui.label("Select UI elements to view their properties.");
+    } else if selected_count > 1 {
+        // Show group properties for multiple selected elements
+        render_group_properties(ui, world, &selected_entities);
     } else {
-        // Show properties for each selected entity
+        // Show properties for single selected entity
         for (i, entity) in selected_entities.iter().enumerate() {
             ui.separator();
             
@@ -375,6 +598,484 @@ fn render_inspector_panel(ui: &mut Ui, world: &mut World) {
             }
         }
     }
+}
+
+fn render_preview_panel(ui: &mut Ui, world: &mut World, codegen_state: Option<&mut crate::events::CodeGenState>, file_dialog: &mut egui_file_dialog::FileDialog) {
+    if let Some(codegen_state) = codegen_state {
+        render_preview_panel_threaded(ui, world, codegen_state, file_dialog);
+    } else {
+        ui.heading("Code Preview");
+        ui.separator();
+        ui.label("❌ CodeGen State not available");
+        ui.label("The threaded code generation system is not properly initialized.");
+    }
+}
+
+fn render_preview_panel_threaded(ui: &mut Ui, world: &mut World, codegen_state: &mut crate::events::CodeGenState, file_dialog: &mut egui_file_dialog::FileDialog) {
+    ui.heading("Code Preview");
+    ui.separator();
+    
+    let mut current_mode = get_preview_mode(ui);
+    ui.horizontal(|ui| {
+        ui.label("Preview Mode:");
+        if ui.radio_value(&mut current_mode, PreviewMode::FullApp, "Full App").changed() {
+            set_preview_mode(ui, current_mode);
+            // Request code regeneration for new mode
+            codegen_state.request_code_generation(crate::integration::TabKind::MainWork, match current_mode {
+                PreviewMode::FullApp => crate::events::CodeGenMode::FullApp,
+                PreviewMode::PanelFunction => crate::events::CodeGenMode::PanelFunction,
+            });
+        }
+        if ui.radio_value(&mut current_mode, PreviewMode::PanelFunction, "Panel Function").changed() {
+            set_preview_mode(ui, current_mode);
+            // Request code regeneration for new mode
+            codegen_state.request_code_generation(crate::integration::TabKind::MainWork, match current_mode {
+                PreviewMode::FullApp => crate::events::CodeGenMode::FullApp,
+                PreviewMode::PanelFunction => crate::events::CodeGenMode::PanelFunction,
+            });
+        }
+    });
+    
+    ui.add_space(10.0);
+    
+    // Show generation status and time
+    ui.horizontal(|ui| {
+        if codegen_state.is_generating() {
+            ui.spinner();
+            ui.label("Generating...");
+        } else if let Some(last_generation_time) = codegen_state.get_last_generation_time() {
+            ui.label(format!("⏱️ Generated in {}ms", last_generation_time));
+        }
+    });
+    
+    ui.add_space(10.0);
+    
+    // Get the currently generated code from the threaded system
+    let generated_code = codegen_state.get_generated_code(crate::integration::TabKind::MainWork, match current_mode {
+        PreviewMode::FullApp => crate::events::CodeGenMode::FullApp,
+        PreviewMode::PanelFunction => crate::events::CodeGenMode::PanelFunction,
+    }).unwrap_or_else(|| "// Code generation in progress...".to_string());
+    
+    // File save controls
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.label("Save as:");
+            
+            // Get/set the filename from UI memory
+            let mut filename = ui.ctx().data_mut(|data| 
+                data.get_temp::<String>(egui::Id::new("export_filename"))
+                    .unwrap_or_else(|| match current_mode {
+                        PreviewMode::FullApp => "app.rs".to_string(),
+                        PreviewMode::PanelFunction => "ui_panel.rs".to_string(),
+                    })
+            );
+            
+            // Text input for filename
+            if ui.text_edit_singleline(&mut filename).changed() {
+                ui.ctx().data_mut(|data| 
+                    data.insert_temp(egui::Id::new("export_filename"), filename.clone())
+                );
+            }
+            
+            // Browse button
+            if ui.button("📁 Browse...").clicked() {
+                file_dialog.save_file();
+            }
+            
+            ui.separator();
+            
+            // Save button
+            if ui.button("💾 Save").clicked() {
+                let path = std::path::Path::new(&filename);
+                if let Err(e) = std::fs::write(path, &generated_code) {
+                    add_designer_log(world, &format!("Failed to save: {}", e));
+                } else {
+                    add_designer_log(world, &format!("Code saved to {}", path.display()));
+                }
+            }
+            
+            ui.separator();
+            
+            if ui.button("📋 Copy to Clipboard").clicked() {
+                ui.ctx().copy_text(generated_code.clone());
+                add_designer_log(world, "Code copied to clipboard");
+            }
+        });
+    });
+    
+    // Update the file dialog and handle result
+    file_dialog.update(ui.ctx());
+    if let Some(path) = file_dialog.take_picked() {
+        // Update the filename with the selected path
+        ui.ctx().data_mut(|data| 
+            data.insert_temp(egui::Id::new("export_filename"), path.to_string_lossy().to_string())
+        );
+    }
+    
+    ui.add_space(10.0);
+    
+    // Check if we should use syntax highlighting or fallback to plain text
+    ui.horizontal(|ui| {
+        ui.label("Display:");
+        let mut use_highlighting = get_use_highlighting(ui);
+        if ui.checkbox(&mut use_highlighting, "Syntax Highlighting").changed() {
+            set_use_highlighting(ui, use_highlighting);
+        }
+    });
+    
+    ui.add_space(5.0);
+    
+    // Show code with optional syntax highlighting
+    if get_use_highlighting(ui) {
+        render_highlighted_code_cached(ui, &generated_code);
+    } else {
+        // Fallback to plain text for better performance
+        egui::ScrollArea::vertical()
+            .max_height(ui.available_height() - 20.0)
+            .show(ui, |ui| {
+                ui.add(
+                    egui::TextEdit::multiline(&mut generated_code.as_str())
+                        .font(egui::TextStyle::Monospace)
+                        .code_editor()
+                        .desired_width(f32::INFINITY)
+                );
+            });
+    }
+}
+
+#[derive(PartialEq, Clone, Copy)]
+pub enum PreviewMode {
+    FullApp,
+    PanelFunction,
+}
+
+fn get_preview_mode(ui: &egui::Ui) -> PreviewMode {
+    ui.ctx().memory(|mem| {
+        mem.data.get_temp(egui::Id::new("preview_mode"))
+            .unwrap_or(PreviewMode::PanelFunction)
+    })
+}
+
+fn set_preview_mode(ui: &egui::Ui, mode: PreviewMode) {
+    ui.ctx().memory_mut(|mem| {
+        mem.data.insert_temp(egui::Id::new("preview_mode"), mode);
+    });
+}
+
+fn get_use_highlighting(ui: &egui::Ui) -> bool {
+    ui.ctx().memory(|mem| {
+        mem.data.get_temp(egui::Id::new("use_highlighting"))
+            .unwrap_or(true) // Default to true with caching for good performance
+    })
+}
+
+fn set_use_highlighting(ui: &egui::Ui, use_highlighting: bool) {
+    ui.ctx().memory_mut(|mem| {
+        mem.data.insert_temp(egui::Id::new("use_highlighting"), use_highlighting);
+    });
+}
+
+// Cached highlighting - only rehighlight when code changes
+fn render_highlighted_code_cached(ui: &mut egui::Ui, code: &str) {
+    let code_hash = {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        code.hash(&mut hasher);
+        hasher.finish()
+    };
+    
+    let cached_result = ui.ctx().memory(|mem| {
+        mem.data.get_temp::<(u64, Vec<(egui::Color32, String)>)>(egui::Id::new("highlighted_code_cache"))
+    });
+    
+    let highlighted_segments = if let Some((cached_hash, cached_segments)) = cached_result {
+        if cached_hash == code_hash {
+            // Use cached result
+            cached_segments
+        } else {
+            // Code changed, re-highlight
+            let highlighter = crate::syntax_highlighting::SyntaxHighlighter::new();
+            let segments = highlighter.highlight_rust_code(code);
+            
+            // Cache the new result
+            ui.ctx().memory_mut(|mem| {
+                mem.data.insert_temp(egui::Id::new("highlighted_code_cache"), (code_hash, segments.clone()));
+            });
+            
+            segments
+        }
+    } else {
+        // First time highlighting
+        let highlighter = crate::syntax_highlighting::SyntaxHighlighter::new();
+        let segments = highlighter.highlight_rust_code(code);
+        
+        // Cache the result
+        ui.ctx().memory_mut(|mem| {
+            mem.data.insert_temp(egui::Id::new("highlighted_code_cache"), (code_hash, segments.clone()));
+        });
+        
+        segments
+    };
+    
+    // Render the cached segments
+    egui::ScrollArea::vertical()
+        .max_height(ui.available_height() - 20.0)
+        .show(ui, |ui| {
+            ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                
+                let font_id = egui::FontId::monospace(12.0);
+                let mut job = egui::text::LayoutJob::default();
+                
+                for (color, text) in highlighted_segments {
+                    job.append(
+                        &text,
+                        0.0,
+                        egui::TextFormat {
+                            font_id: font_id.clone(),
+                            color,
+                            ..Default::default()
+                        },
+                    );
+                }
+                
+                ui.add(egui::Label::new(job));
+            });
+        });
+}
+
+fn render_group_properties(ui: &mut Ui, world: &mut World, selected_entities: &[Entity]) {
+    ui.separator();
+    ui.label(format!("📦 Group Properties ({} items)", selected_entities.len()));
+    ui.separator();
+    
+    // Collect common properties from all selected entities
+    let mut common_positions = Vec::new();
+    let mut common_sizes = Vec::new();
+    let mut common_enabled_states = Vec::new();
+    
+    for entity in selected_entities {
+        if let Some(pos) = world.get::<UiElementPosition>(*entity) {
+            common_positions.push((*entity, pos.x, pos.y));
+        }
+        if let Some(size) = world.get::<UiElementSize>(*entity) {
+            common_sizes.push((*entity, size.width, size.height));
+        }
+        
+        // Check if entity has an enabled property
+        let enabled = if let Some(button) = world.get::<UiButton>(*entity) {
+            Some(button.enabled)
+        } else if let Some(text_input) = world.get::<UiTextInput>(*entity) {
+            Some(text_input.enabled)
+        } else if let Some(checkbox) = world.get::<UiCheckbox>(*entity) {
+            Some(checkbox.enabled)
+        } else if let Some(radio) = world.get::<UiRadioButton>(*entity) {
+            Some(radio.enabled)
+        } else if let Some(group_box) = world.get::<UiGroupBox>(*entity) {
+            Some(group_box.enabled)
+        } else {
+            None
+        };
+        
+        if let Some(enabled) = enabled {
+            common_enabled_states.push((*entity, enabled));
+        }
+    }
+    
+    // Group Position & Size Controls
+    if !common_positions.is_empty() || !common_sizes.is_empty() {
+        ui.group(|ui| {
+            ui.label("📍 Position & Size (Batch Edit)");
+            ui.separator();
+            
+            if !common_positions.is_empty() {
+                ui.horizontal(|ui| {
+                    ui.label("Position Offset:");
+                    
+                    // Use persistent storage for offset values
+                    let mut x_offset = ui.ctx().memory(|mem| {
+                        mem.data.get_temp(egui::Id::new("group_x_offset")).unwrap_or(0.0f32)
+                    });
+                    let mut y_offset = ui.ctx().memory(|mem| {
+                        mem.data.get_temp(egui::Id::new("group_y_offset")).unwrap_or(0.0f32)
+                    });
+                    
+                    if ui.add(egui::DragValue::new(&mut x_offset).prefix("X: ").range(-500.0..=500.0)).changed() {
+                        ui.ctx().memory_mut(|mem| {
+                            mem.data.insert_temp(egui::Id::new("group_x_offset"), x_offset);
+                        });
+                    }
+                    if ui.add(egui::DragValue::new(&mut y_offset).prefix("Y: ").range(-500.0..=500.0)).changed() {
+                        ui.ctx().memory_mut(|mem| {
+                            mem.data.insert_temp(egui::Id::new("group_y_offset"), y_offset);
+                        });
+                    }
+                    
+                    if ui.button("Apply Offset").clicked() {
+                        for (entity, _, _) in &common_positions {
+                            if let Some(mut pos) = world.get_mut::<UiElementPosition>(*entity) {
+                                pos.x += x_offset;
+                                pos.y += y_offset;
+                            }
+                        }
+                        add_designer_log(world, &format!("Applied offset ({:.1}, {:.1}) to {} elements", x_offset, y_offset, common_positions.len()));
+                        
+                        // Reset offset values after applying
+                        ui.ctx().memory_mut(|mem| {
+                            mem.data.insert_temp(egui::Id::new("group_x_offset"), 0.0f32);
+                            mem.data.insert_temp(egui::Id::new("group_y_offset"), 0.0f32);
+                        });
+                    }
+                });
+            }
+            
+            if !common_sizes.is_empty() {
+                ui.horizontal(|ui| {
+                    ui.label("Set Size:");
+                    
+                    // Use persistent storage for size values, initialize with first element's size
+                    let default_width = common_sizes[0].1;
+                    let default_height = common_sizes[0].2;
+                    
+                    let mut new_width = ui.ctx().memory(|mem| {
+                        mem.data.get_temp(egui::Id::new("group_width")).unwrap_or(default_width)
+                    });
+                    let mut new_height = ui.ctx().memory(|mem| {
+                        mem.data.get_temp(egui::Id::new("group_height")).unwrap_or(default_height)
+                    });
+                    
+                    if ui.add(egui::DragValue::new(&mut new_width).prefix("W: ").range(10.0..=500.0)).changed() {
+                        ui.ctx().memory_mut(|mem| {
+                            mem.data.insert_temp(egui::Id::new("group_width"), new_width);
+                        });
+                    }
+                    if ui.add(egui::DragValue::new(&mut new_height).prefix("H: ").range(10.0..=500.0)).changed() {
+                        ui.ctx().memory_mut(|mem| {
+                            mem.data.insert_temp(egui::Id::new("group_height"), new_height);
+                        });
+                    }
+                    
+                    if ui.button("Apply Size").clicked() {
+                        for (entity, _, _) in &common_sizes {
+                            if let Some(mut size) = world.get_mut::<UiElementSize>(*entity) {
+                                size.width = new_width;
+                                size.height = new_height;
+                            }
+                        }
+                        add_designer_log(world, &format!("Set size {}x{} for {} elements", new_width, new_height, common_sizes.len()));
+                    }
+                });
+                
+                ui.horizontal(|ui| {
+                    ui.label("Scale Size:");
+                    
+                    let mut scale_factor = ui.ctx().memory(|mem| {
+                        mem.data.get_temp(egui::Id::new("group_scale")).unwrap_or(1.0f32)
+                    });
+                    
+                    if ui.add(egui::DragValue::new(&mut scale_factor).prefix("Scale: ").range(0.1..=3.0).speed(0.1)).changed() {
+                        ui.ctx().memory_mut(|mem| {
+                            mem.data.insert_temp(egui::Id::new("group_scale"), scale_factor);
+                        });
+                    }
+                    
+                    if ui.button("Apply Scale").clicked() {
+                        for (entity, _, _) in &common_sizes {
+                            if let Some(mut size) = world.get_mut::<UiElementSize>(*entity) {
+                                size.width *= scale_factor;
+                                size.height *= scale_factor;
+                            }
+                        }
+                        add_designer_log(world, &format!("Scaled {} elements by {:.1}x", common_sizes.len(), scale_factor));
+                        
+                        // Reset scale factor after applying
+                        ui.ctx().memory_mut(|mem| {
+                            mem.data.insert_temp(egui::Id::new("group_scale"), 1.0f32);
+                        });
+                    }
+                });
+            }
+        });
+    }
+    
+    // Group Enable/Disable Controls
+    if !common_enabled_states.is_empty() {
+        ui.group(|ui| {
+            ui.label("⚙️ Enable/Disable (Batch Edit)");
+            ui.separator();
+            
+            ui.horizontal(|ui| {
+                if ui.button("✅ Enable All").clicked() {
+                    for (entity, _) in &common_enabled_states {
+                        // Update the enabled state for each component type
+                        if let Some(mut button) = world.get_mut::<UiButton>(*entity) {
+                            button.enabled = true;
+                        } else if let Some(mut text_input) = world.get_mut::<UiTextInput>(*entity) {
+                            text_input.enabled = true;
+                        } else if let Some(mut checkbox) = world.get_mut::<UiCheckbox>(*entity) {
+                            checkbox.enabled = true;
+                        } else if let Some(mut radio) = world.get_mut::<UiRadioButton>(*entity) {
+                            radio.enabled = true;
+                        } else if let Some(mut group_box) = world.get_mut::<UiGroupBox>(*entity) {
+                            group_box.enabled = true;
+                        }
+                    }
+                    add_designer_log(world, &format!("Enabled {} elements", common_enabled_states.len()));
+                }
+                
+                if ui.button("❌ Disable All").clicked() {
+                    for (entity, _) in &common_enabled_states {
+                        // Update the enabled state for each component type
+                        if let Some(mut button) = world.get_mut::<UiButton>(*entity) {
+                            button.enabled = false;
+                        } else if let Some(mut text_input) = world.get_mut::<UiTextInput>(*entity) {
+                            text_input.enabled = false;
+                        } else if let Some(mut checkbox) = world.get_mut::<UiCheckbox>(*entity) {
+                            checkbox.enabled = false;
+                        } else if let Some(mut radio) = world.get_mut::<UiRadioButton>(*entity) {
+                            radio.enabled = false;
+                        } else if let Some(mut group_box) = world.get_mut::<UiGroupBox>(*entity) {
+                            group_box.enabled = false;
+                        }
+                    }
+                    add_designer_log(world, &format!("Disabled {} elements", common_enabled_states.len()));
+                }
+                
+                if ui.button("🔄 Toggle All").clicked() {
+                    for (entity, current_enabled) in &common_enabled_states {
+                        let new_enabled = !current_enabled;
+                        // Update the enabled state for each component type
+                        if let Some(mut button) = world.get_mut::<UiButton>(*entity) {
+                            button.enabled = new_enabled;
+                        } else if let Some(mut text_input) = world.get_mut::<UiTextInput>(*entity) {
+                            text_input.enabled = new_enabled;
+                        } else if let Some(mut checkbox) = world.get_mut::<UiCheckbox>(*entity) {
+                            checkbox.enabled = new_enabled;
+                        } else if let Some(mut radio) = world.get_mut::<UiRadioButton>(*entity) {
+                            radio.enabled = new_enabled;
+                        } else if let Some(mut group_box) = world.get_mut::<UiGroupBox>(*entity) {
+                            group_box.enabled = new_enabled;
+                        }
+                    }
+                    add_designer_log(world, &format!("Toggled enabled state for {} elements", common_enabled_states.len()));
+                }
+            });
+        });
+    }
+    
+    // Group Deletion
+    ui.group(|ui| {
+        ui.label("🗑️ Danger Zone");
+        ui.separator();
+        
+        if ui.button("🗑️ Delete All Selected").clicked() {
+            for entity in selected_entities {
+                world.despawn(*entity);
+            }
+            add_designer_log(world, &format!("Deleted {} selected elements", selected_entities.len()));
+        }
+    });
 }
 
 
@@ -576,177 +1277,4 @@ fn count_selected_elements(world: &mut World) -> usize {
     query.iter(world).filter(|selected| selected.selected).count()
 }
 
-fn distribute_elements_vertically(world: &mut World) {
-    let mut selected_elements = Vec::new();
-    
-    // Collect selected elements with their positions
-    let mut query = world.query::<(Entity, &UiElementPosition, &UiElementSelected)>();
-    for (entity, pos, selected) in query.iter(world) {
-        if selected.selected {
-            selected_elements.push((entity, pos.clone()));
-        }
-    }
-    
-    if selected_elements.len() < 2 {
-        return;
-    }
-    
-    // Sort by Y position
-    selected_elements.sort_by(|a, b| a.1.y.partial_cmp(&b.1.y).unwrap());
-    
-    // Calculate even distribution
-    let min_y = selected_elements.first().unwrap().1.y;
-    let max_y = selected_elements.last().unwrap().1.y;
-    let step = if selected_elements.len() > 1 {
-        (max_y - min_y) / (selected_elements.len() - 1) as f32
-    } else {
-        0.0
-    };
-    
-    // Update positions
-    for (i, (entity, _)) in selected_elements.iter().enumerate() {
-        if let Some(mut pos) = world.get_mut::<UiElementPosition>(*entity) {
-            pos.y = min_y + (i as f32 * step);
-        }
-    }
-}
-
-fn distribute_elements_horizontally(world: &mut World) {
-    let mut selected_elements = Vec::new();
-    
-    // Collect selected elements with their positions
-    let mut query = world.query::<(Entity, &UiElementPosition, &UiElementSelected)>();
-    for (entity, pos, selected) in query.iter(world) {
-        if selected.selected {
-            selected_elements.push((entity, pos.clone()));
-        }
-    }
-    
-    if selected_elements.len() < 2 {
-        return;
-    }
-    
-    // Sort by X position
-    selected_elements.sort_by(|a, b| a.1.x.partial_cmp(&b.1.x).unwrap());
-    
-    // Calculate even distribution
-    let min_x = selected_elements.first().unwrap().1.x;
-    let max_x = selected_elements.last().unwrap().1.x;
-    let step = if selected_elements.len() > 1 {
-        (max_x - min_x) / (selected_elements.len() - 1) as f32
-    } else {
-        0.0
-    };
-    
-    // Update positions
-    for (i, (entity, _)) in selected_elements.iter().enumerate() {
-        if let Some(mut pos) = world.get_mut::<UiElementPosition>(*entity) {
-            pos.x = min_x + (i as f32 * step);
-        }
-    }
-}
-
-fn align_elements_left(world: &mut World) {
-    let mut selected_elements = Vec::new();
-    
-    // Collect selected elements
-    let mut query = world.query::<(Entity, &UiElementPosition, &UiElementSelected)>();
-    for (entity, pos, selected) in query.iter(world) {
-        if selected.selected {
-            selected_elements.push((entity, pos.x));
-        }
-    }
-    
-    if selected_elements.len() < 2 {
-        return;
-    }
-    
-    // Find leftmost position
-    let leftmost_x = selected_elements.iter().map(|(_, x)| *x).fold(f32::INFINITY, f32::min);
-    
-    // Align all to leftmost position
-    for (entity, _) in selected_elements {
-        if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity) {
-            pos.x = leftmost_x;
-        }
-    }
-}
-
-fn align_elements_right(world: &mut World) {
-    let mut selected_elements = Vec::new();
-    
-    // Collect selected elements with their positions and sizes
-    let mut query = world.query::<(Entity, &UiElementPosition, &UiElementSize, &UiElementSelected)>();
-    for (entity, pos, size, selected) in query.iter(world) {
-        if selected.selected {
-            selected_elements.push((entity, pos.x + size.width, size.width));
-        }
-    }
-    
-    if selected_elements.len() < 2 {
-        return;
-    }
-    
-    // Find rightmost position
-    let rightmost_x = selected_elements.iter().map(|(_, x, _)| *x).fold(f32::NEG_INFINITY, f32::max);
-    
-    // Align all to rightmost position
-    for (entity, _, width) in selected_elements {
-        if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity) {
-            pos.x = rightmost_x - width;
-        }
-    }
-}
-
-fn align_elements_top(world: &mut World) {
-    let mut selected_elements = Vec::new();
-    
-    // Collect selected elements
-    let mut query = world.query::<(Entity, &UiElementPosition, &UiElementSelected)>();
-    for (entity, pos, selected) in query.iter(world) {
-        if selected.selected {
-            selected_elements.push((entity, pos.y));
-        }
-    }
-    
-    if selected_elements.len() < 2 {
-        return;
-    }
-    
-    // Find topmost position
-    let topmost_y = selected_elements.iter().map(|(_, y)| *y).fold(f32::INFINITY, f32::min);
-    
-    // Align all to topmost position
-    for (entity, _) in selected_elements {
-        if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity) {
-            pos.y = topmost_y;
-        }
-    }
-}
-
-fn align_elements_bottom(world: &mut World) {
-    let mut selected_elements = Vec::new();
-    
-    // Collect selected elements with their positions and sizes
-    let mut query = world.query::<(Entity, &UiElementPosition, &UiElementSize, &UiElementSelected)>();
-    for (entity, pos, size, selected) in query.iter(world) {
-        if selected.selected {
-            selected_elements.push((entity, pos.y + size.height, size.height));
-        }
-    }
-    
-    if selected_elements.len() < 2 {
-        return;
-    }
-    
-    // Find bottommost position
-    let bottommost_y = selected_elements.iter().map(|(_, y, _)| *y).fold(f32::NEG_INFINITY, f32::max);
-    
-    // Align all to bottommost position
-    for (entity, _, height) in selected_elements {
-        if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity) {
-            pos.y = bottommost_y - height;
-        }
-    }
-}
 

@@ -4,6 +4,10 @@ pub mod resources;
 pub mod bundles;
 pub mod integration;
 pub mod utils;
+pub mod codegen;
+pub mod syntax_highlighting;
+pub mod events;
+pub mod codegen_thread;
 
 // Re-export commonly used items
 pub use components::*;
@@ -22,6 +26,7 @@ pub use mobius_ecs;
 
 use bevy_ecs::prelude::*;
 use std::path::PathBuf;
+use crate::systems::tabs::PreviewMode;
 
 /// Create the default dock layout with the desired tab arrangement
 fn create_default_dock_layout() -> egui_dock::DockState<Tab> {
@@ -34,6 +39,7 @@ fn create_default_dock_layout() -> egui_dock::DockState<Tab> {
         Tab { name: "Controls".to_string(), kind: TabKind::Controls, id: 2 },
         Tab { name: "Settings".to_string(), kind: TabKind::Settings, id: 3 },
         Tab { name: "Event Logger".to_string(), kind: TabKind::EventLogger, id: 4 },
+        Tab { name: "Preview".to_string(), kind: TabKind::Preview, id: 5 },
     ]);
     
     dock_state
@@ -76,6 +82,9 @@ pub fn create_designer_world() -> World {
     
     // Add default grid settings
     world.spawn(GridSettings::default());
+    
+    // Add distribution settings as a resource
+    world.insert_resource(DistributionSettings::new());
     
     // Add default panels from mobius_ecs
     world.spawn(mobius_ecs::MainWorkArea {
@@ -230,23 +239,62 @@ pub fn add_ui_group_box(
 /// Designer application state
 pub struct DesignerApp {
     pub world: World,
-    pub edit_mode: bool,
     pub selection_state: SelectionState,
     pub distribution_settings: DistributionSettings,
     pub dock_state: egui_dock::DockState<Tab>,
     pub tab_viewer: MobiusTabViewer,
+    pub codegen_state: events::CodeGenState,
+    pub world_snapshot: egui_mobius::types::Value<Option<crate::codegen_thread::WorldSnapshot>>,
 }
 
 impl DesignerApp {
     pub fn new() -> Self {
+        use egui_mobius::factory;
+        
+        // Create signal/slot pairs for code generation
+        let (signal_to_codegen, slot_from_ui) = factory::create_signal_slot::<events::CodeGenEvent>();
+        let (signal_to_ui, slot_for_responses) = factory::create_signal_slot::<events::CodeGenResponse>();
+        
+        // Create shared world snapshot
+        let world_snapshot = egui_mobius::types::Value::new(None);
+        
+        // Start the background code generation thread
+        crate::codegen_thread::start_codegen_thread(
+            slot_from_ui,
+            signal_to_ui.clone(),
+            world_snapshot.clone(),
+        );
+        
         let mut app = Self {
             world: create_designer_world(),
-            edit_mode: false,
             selection_state: SelectionState::default(),
             distribution_settings: DistributionSettings::new(),
             dock_state: load_dock_layout(),
             tab_viewer: MobiusTabViewer::new(),
+            codegen_state: events::CodeGenState::new(signal_to_codegen, slot_for_responses),
+            world_snapshot: world_snapshot.clone(),
         };
+        
+        // Start background timer thread for code generation
+        {
+            let signal_to_codegen = app.codegen_state.signal_to_codegen.clone();
+            
+            std::thread::spawn(move || {
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+                    
+                    // Trigger code generation for both modes every 3 seconds
+                    let _ = signal_to_codegen.send(crate::events::CodeGenEvent::RegenerateCode {
+                        tab_kind: crate::integration::TabKind::MainWork,
+                        mode: crate::events::CodeGenMode::PanelFunction,
+                    });
+                    let _ = signal_to_codegen.send(crate::events::CodeGenEvent::RegenerateCode {
+                        tab_kind: crate::integration::TabKind::MainWork,
+                        mode: crate::events::CodeGenMode::FullApp,
+                    });
+                }
+            });
+        }
         
         // Set up the tab viewer with world pointer
         app.tab_viewer.set_world(&mut app.world as *mut World);
@@ -486,9 +534,17 @@ impl eframe::App for DesignerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Update tab viewer world pointer
         self.tab_viewer.set_world(&mut self.world as *mut World);
+        self.tab_viewer.set_codegen_state(&mut self.codegen_state as *mut events::CodeGenState);
         
         // Reset button clicks after a delay (visual feedback)
         reset_button_clicks(&mut self.world);
+        
+        // Update world snapshot for codegen thread (only when it needs it)
+        {
+            let new_snapshot = crate::codegen_thread::WorldSnapshot::from_world(&mut self.world);
+            let mut snapshot_guard = self.world_snapshot.lock().unwrap();
+            *snapshot_guard = Some(new_snapshot);
+        }
         
         // Top menu bar
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -512,11 +568,39 @@ impl eframe::App for DesignerApp {
                 });
                 
                 ui.menu_button("Edit", |ui| {
-                    let edit_text = if self.edit_mode { "🔒 View Mode" } else { "✏️ Edit Mode" };
-                    if ui.button(edit_text).clicked() {
-                        self.edit_mode = !self.edit_mode;
+                    if ui.button("🔄 Clear Selections").clicked() {
                         clear_all_selections(&mut self.world);
-                        add_designer_log(&mut self.world, if self.edit_mode { "Entered edit mode" } else { "Entered view mode" });
+                        add_designer_log(&mut self.world, "Cleared all selections");
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                });
+                
+                ui.menu_button("View", |ui| {
+                    if ui.button("🖥️ Add Preview Tab").clicked() {
+                        // Check if Preview tab already exists
+                        let mut has_preview = false;
+                        for (_surface_info, tab) in self.dock_state.iter_all_tabs() {
+                            if matches!(tab.kind, TabKind::Preview) {
+                                has_preview = true;
+                                break;
+                            }
+                        }
+                        
+                        if !has_preview {
+                            let new_tab = Tab { 
+                                name: "Preview".to_string(), 
+                                kind: TabKind::Preview, 
+                                id: 5 
+                            };
+                            // Try to find the first available leaf to add the tab
+                            if let Some((surface_index, node_index, _tab_index)) = self.dock_state.find_tab(&Tab { name: "Controls".to_string(), kind: TabKind::Controls, id: 2 }) {
+                                self.dock_state.set_focused_node_and_surface((surface_index, node_index));
+                                self.dock_state.push_to_focused_leaf(new_tab);
+                            }
+                            add_designer_log(&mut self.world, "Added Preview tab");
+                        } else {
+                            add_designer_log(&mut self.world, "Preview tab already exists");
+                        }
                         ui.close_kind(egui::UiKind::Menu);
                     }
                 });
@@ -548,19 +632,14 @@ impl eframe::App for DesignerApp {
                     }
                     
                     ui.separator();
-                    if ui.add_enabled(self.edit_mode, egui::Button::new("🗑️ Clear All UI Elements")).clicked() {
+                    if ui.button("🗑️ Clear All UI Elements").clicked() {
                         clear_all_ui_elements(&mut self.world);
+                        add_designer_log(&mut self.world, "Cleared all UI elements");
                         ui.close_kind(egui::UiKind::Menu);
-                    }
-                    if !self.edit_mode {
-                        ui.label("⚠️ Enable Edit Mode to clear elements");
                     }
                 });
             });
         });
-        
-        // Update tab viewer edit mode
-        self.tab_viewer.edit_mode = self.edit_mode;
         
         // Main UI
         egui::CentralPanel::default().show(ctx, |_ui| {
@@ -569,8 +648,5 @@ impl eframe::App for DesignerApp {
                 .style(egui_dock::Style::from_egui(ctx.style().as_ref()))
                 .show(ctx, &mut self.tab_viewer);
         });
-        
-        // Sync back any changes from tab viewer to main app
-        self.edit_mode = self.tab_viewer.edit_mode;
     }
 }

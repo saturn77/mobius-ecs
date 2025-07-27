@@ -27,37 +27,37 @@ impl Default for TabType {
 
 #[derive(Component)]
 pub struct MobiusApp {
-    pub app_name: String,
-    pub template_name: String,
-    pub active_tab: TabType,
+    pub app_name      : String,
+    pub template_name : String,
+    pub active_tab    : TabType,
 }
 
 #[derive(Component)]
 pub struct MainWorkArea {
-    pub content: String,
-    pub background_color: [f32; 4],
+    pub content          : String,
+    pub background_color : [f32; 4],
 }
 
 #[derive(Component)]
 pub struct SettingsPanel {
-    pub global_units_mils: bool,
-    pub user_timezone: Option<String>,
-    pub use_24_hour_clock: bool,
-    pub interface_language: String,
+    pub global_units_mils  : bool,
+    pub user_timezone      : Option<String>,
+    pub use_24_hour_clock  : bool,
+    pub interface_language : String,
 }
 
 #[derive(Component)]
 pub struct EventLoggerPanel {
-    pub entries: Vec<LogEntry>,
-    pub max_entries: usize,
-    pub auto_scroll: bool,
+    pub entries           : Vec<LogEntry>,
+    pub max_entries       : usize,
+    pub auto_scroll       : bool,
 }
 
 #[derive(Clone)]
 pub struct LogEntry {
-    pub timestamp: String,
-    pub level: LogLevel,
-    pub message: String,
+    pub timestamp  : String,
+    pub level      : LogLevel,
+    pub message    : String,
 }
 
 #[derive(Clone, PartialEq, Debug)]

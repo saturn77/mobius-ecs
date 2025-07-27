@@ -1,4 +1,6 @@
-#[derive(Default)]
+use bevy_ecs::prelude::*;
+
+#[derive(Default, Resource, Clone)]
 pub struct DistributionSettings {
     pub vertical_spacing: f32,
     pub horizontal_spacing: f32,

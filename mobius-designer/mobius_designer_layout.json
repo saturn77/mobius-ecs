@@ -11,11 +11,11 @@
                   "y": 22.0
                 },
                 "max": {
-                  "x": 1200.0,
-                  "y": 800.0
+                  "x": 1920.0,
+                  "y": 1048.0
                 }
               },
-              "fraction": 0.58867323,
+              "fraction": 0.7206656,
               "fully_collapsed": false,
               "collapsed_leaf_count": 0
             }
@@ -28,11 +28,11 @@
                   "y": 22.0
                 },
                 "max": {
-                  "x": 1200.0,
-                  "y": 479.5
+                  "x": 1920.0,
+                  "y": 761.0
                 }
               },
-              "fraction": 0.3897629,
+              "fraction": 0.5420502,
               "fully_collapsed": false,
               "collapsed_leaf_count": 0
             }
@@ -42,21 +42,21 @@
               "rect": {
                 "min": {
                   "x": 0.0,
-                  "y": 480.5
+                  "y": 762.0
                 },
                 "max": {
-                  "x": 1200.0,
-                  "y": 800.0
+                  "x": 1920.0,
+                  "y": 1048.0
                 }
               },
               "viewport": {
                 "min": {
                   "x": 0.0,
-                  "y": 504.5
+                  "y": 786.0
                 },
                 "max": {
-                  "x": 1200.0,
-                  "y": 800.0
+                  "x": 1920.0,
+                  "y": 1048.0
                 }
               },
               "tabs": [
@@ -72,6 +72,116 @@
             }
           },
           {
+            "Horizontal": {
+              "rect": {
+                "min": {
+                  "x": 0.0,
+                  "y": 22.0
+                },
+                "max": {
+                  "x": 1040.0,
+                  "y": 761.0
+                }
+              },
+              "fraction": 0.7430132,
+              "fully_collapsed": false,
+              "collapsed_leaf_count": 0
+            }
+          },
+          {
+            "Leaf": {
+              "rect": {
+                "min": {
+                  "x": 1041.0,
+                  "y": 22.0
+                },
+                "max": {
+                  "x": 1920.0,
+                  "y": 761.0
+                }
+              },
+              "viewport": {
+                "min": {
+                  "x": 1041.0,
+                  "y": 46.0
+                },
+                "max": {
+                  "x": 1920.0,
+                  "y": 761.0
+                }
+              },
+              "tabs": [
+                {
+                  "name": "Preview",
+                  "kind": "Preview",
+                  "id": 5
+                }
+              ],
+              "active": 0,
+              "scroll": 0.0,
+              "collapsed": false
+            }
+          },
+          "Empty",
+          "Empty",
+          {
+            "Horizontal": {
+              "rect": {
+                "min": {
+                  "x": 0.0,
+                  "y": 22.0
+                },
+                "max": {
+                  "x": 772.0,
+                  "y": 761.0
+                }
+              },
+              "fraction": 0.5886673,
+              "fully_collapsed": false,
+              "collapsed_leaf_count": 0
+            }
+          },
+          {
+            "Leaf": {
+              "rect": {
+                "min": {
+                  "x": 773.0,
+                  "y": 22.0
+                },
+                "max": {
+                  "x": 1040.0,
+                  "y": 761.0
+                }
+              },
+              "viewport": {
+                "min": {
+                  "x": 773.0,
+                  "y": 46.0
+                },
+                "max": {
+                  "x": 1040.0,
+                  "y": 761.0
+                }
+              },
+              "tabs": [
+                {
+                  "name": "Inspector",
+                  "kind": "Inspector",
+                  "id": 1
+                }
+              ],
+              "active": 0,
+              "scroll": 0.0,
+              "collapsed": false
+            }
+          },
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          {
             "Leaf": {
               "rect": {
                 "min": {
@@ -79,8 +189,8 @@
                   "y": 22.0
                 },
                 "max": {
-                  "x": 467.0,
-                  "y": 479.5
+                  "x": 454.0,
+                  "y": 761.0
                 }
               },
               "viewport": {
@@ -89,8 +199,8 @@
                   "y": 46.0
                 },
                 "max": {
-                  "x": 467.0,
-                  "y": 479.5
+                  "x": 454.0,
+                  "y": 761.0
                 }
               },
               "tabs": [
@@ -98,7 +208,36 @@
                   "name": "Main Work",
                   "kind": "MainWork",
                   "id": 0
+                }
+              ],
+              "active": 0,
+              "scroll": 0.0,
+              "collapsed": false
+            }
+          },
+          {
+            "Leaf": {
+              "rect": {
+                "min": {
+                  "x": 455.0,
+                  "y": 22.0
                 },
+                "max": {
+                  "x": 772.0,
+                  "y": 761.0
+                }
+              },
+              "viewport": {
+                "min": {
+                  "x": 455.0,
+                  "y": 46.0
+                },
+                "max": {
+                  "x": 772.0,
+                  "y": 761.0
+                }
+              },
+              "tabs": [
                 {
                   "name": "Controls",
                   "kind": "Controls",
@@ -115,44 +254,22 @@
               "collapsed": false
             }
           },
-          {
-            "Leaf": {
-              "rect": {
-                "min": {
-                  "x": 468.0,
-                  "y": 22.0
-                },
-                "max": {
-                  "x": 1200.0,
-                  "y": 479.5
-                }
-              },
-              "viewport": {
-                "min": {
-                  "x": 468.0,
-                  "y": 46.0
-                },
-                "max": {
-                  "x": 1200.0,
-                  "y": 479.5
-                }
-              },
-              "tabs": [
-                {
-                  "name": "Inspector",
-                  "kind": "Inspector",
-                  "id": 1
-                }
-              ],
-              "active": 0,
-              "scroll": 0.0,
-              "collapsed": false
-            }
-          },
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
+          "Empty",
           "Empty",
           "Empty"
         ],
-        "focused_node": 3,
+        "focused_node": 15,
         "collapsed": false,
         "collapsed_leaf_count": 0
       }

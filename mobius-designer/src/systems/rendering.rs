@@ -9,7 +9,6 @@ use crate::utils::*;
 pub fn render_dynamic_ui_elements(
     ui: &mut Ui,
     world: &mut World,
-    edit_mode: bool,
     grid_settings: &GridSettings,
     renaming_entity: &mut Option<Entity>,
     rename_buffer: &mut String,
@@ -20,11 +19,11 @@ pub fn render_dynamic_ui_elements(
     let mut updates = Vec::new();
     let mut log_messages = Vec::new();
     
-    render_buttons(ui, world, edit_mode, grid_settings, &mut updates, &mut log_messages, renaming_entity, rename_buffer, resizing_entity);
-    render_text_inputs(ui, world, edit_mode, grid_settings, &mut updates, &mut log_messages, resizing_entity);
-    render_checkboxes(ui, world, edit_mode, grid_settings, &mut updates, &mut log_messages, resizing_entity);
-    render_radio_buttons(ui, world, edit_mode, grid_settings, &mut updates, &mut log_messages, resizing_entity);
-    render_group_boxes(ui, world, edit_mode, grid_settings, &mut updates, &mut log_messages, resizing_entity);
+    render_buttons(ui, world, grid_settings, &mut updates, &mut log_messages, renaming_entity, rename_buffer, resizing_entity);
+    render_text_inputs(ui, world, grid_settings, &mut updates, &mut log_messages, resizing_entity);
+    render_checkboxes(ui, world, grid_settings, &mut updates, &mut log_messages, resizing_entity);
+    render_radio_buttons(ui, world, grid_settings, &mut updates, &mut log_messages, resizing_entity);
+    render_group_boxes(ui, world, grid_settings, &mut updates, &mut log_messages, resizing_entity);
     
     apply_updates(world, updates);
     
@@ -33,15 +32,13 @@ pub fn render_dynamic_ui_elements(
         add_designer_log(world, &message);
     }
     
-    if edit_mode {
-        draw_resize_handles(ui, world);
-    }
+    // Always show resize handles in design mode
+    draw_resize_handles(ui, world);
 }
 
 fn render_buttons(
     ui: &mut Ui,
     world: &mut World,
-    edit_mode: bool,
     grid_settings: &GridSettings,
     updates: &mut Vec<Box<dyn FnOnce(&mut World) + Send>>,
     log_messages: &mut Vec<String>,
@@ -58,9 +55,8 @@ fn render_buttons(
             .order(Order::Middle)
             .fixed_pos(Pos2::new(pos.x, pos.y))
             .show(ui.ctx(), |ui| {
-                if edit_mode {
-                    create_edit_frame(ui, selected.selected);
-                }
+                // Always show edit frame in design mode
+                create_edit_frame(ui, selected.selected);
                 
                 let button_response = if *renaming_entity == Some(entity) {
                     // Show text input for renaming
@@ -94,10 +90,10 @@ fn render_buttons(
                         egui::RichText::new(&button.label)
                     };
                     
-                    let btn_response = if size.width > 10.0 || size.height > 10.0 {
+                    let btn_response = if size.width > 0.0 || size.height > 0.0 {
                         // Manual button rendering with exact size
-                        let actual_width = if size.width > 10.0 { size.width } else { 80.0 };
-                        let actual_height = if size.height > 10.0 { size.height } else { 25.0 };
+                        let actual_width = if size.width > 0.0 { size.width } else { 80.0 };
+                        let actual_height = if size.height > 0.0 { size.height } else { 25.0 };
                         
                         let desired_size = Vec2::new(actual_width, actual_height);
                         let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
@@ -134,7 +130,8 @@ fn render_buttons(
                 button_response
             });
         
-        if edit_mode {
+        // Always enabled in design mode
+        if true {
             // Handle dragging directly on the button response
             let drag_response = area_response.inner.interact(egui::Sense::drag());
             if drag_response.dragged() {
@@ -198,11 +195,12 @@ fn render_buttons(
             });
             
             // Show resize handles if this entity is being resized
-            if edit_mode && *resizing_entity == Some(entity) {
+            if *resizing_entity == Some(entity) {
                 draw_resize_handles_for_entity(ui, area_response.inner.rect, updates, entity);
             }
         } else if area_response.inner.clicked() {
-            if edit_mode {
+            // Always enabled in design mode
+        if true {
                 // In edit mode, clicking selects/deselects the element
                 let entity_copy = entity;
                 updates.push(Box::new(move |world: &mut World| {
@@ -230,8 +228,7 @@ fn render_buttons(
 fn render_text_inputs(
     ui: &mut Ui,
     world: &mut World,
-    edit_mode: bool,
-    _grid_settings: &GridSettings,
+    grid_settings: &GridSettings,
     updates: &mut Vec<Box<dyn FnOnce(&mut World) + Send>>,
     log_messages: &mut Vec<String>,
     _resizing_entity: &mut Option<Entity>,
@@ -245,9 +242,8 @@ fn render_text_inputs(
             .order(Order::Middle)
             .fixed_pos(Pos2::new(pos.x, pos.y))
             .show(ui.ctx(), |ui| {
-                if edit_mode {
-                    create_edit_frame(ui, selected.selected);
-                }
+                // Always show edit frame in design mode
+                create_edit_frame(ui, selected.selected);
                 
                 let response = ui.vertical(|ui| {
                     let label_text = if text_input.font_size > 0.0 {
@@ -283,19 +279,31 @@ fn render_text_inputs(
                 response
             });
         
-        if edit_mode {
+        // Always enabled in design mode
+        if true {
             // Handle dragging directly on the element response
             let drag_response = area_response.inner.interact(egui::Sense::drag());
             if drag_response.dragged() {
                 let delta = drag_response.drag_delta();
-                let entity_copy = entity;
-                updates.push(Box::new(move |world: &mut World| {
-                    if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity_copy) {
-                        let new_pos = Pos2::new(pos.x + delta.x, pos.y + delta.y);
-                        pos.x = new_pos.x;
-                        pos.y = new_pos.y;
-                    }
-                }));
+                let snap_enabled = grid_settings.snap_enabled;
+                let spacing = grid_settings.spacing_pixels;
+                
+                // If this element is selected, move all selected elements
+                if selected.selected {
+                    updates.push(Box::new(move |world: &mut World| {
+                        move_selected_elements(world, delta, snap_enabled, spacing);
+                    }));
+                } else {
+                    // Move only this element
+                    let entity_copy = entity;
+                    updates.push(Box::new(move |world: &mut World| {
+                        if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity_copy) {
+                            let new_pos = Pos2::new(pos.x + delta.x, pos.y + delta.y);
+                            pos.x = new_pos.x;
+                            pos.y = new_pos.y;
+                        }
+                    }));
+                }
             }
             if drag_response.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
@@ -307,8 +315,7 @@ fn render_text_inputs(
 fn render_checkboxes(
     ui: &mut Ui,
     world: &mut World,
-    edit_mode: bool,
-    _grid_settings: &GridSettings,
+    grid_settings: &GridSettings,
     updates: &mut Vec<Box<dyn FnOnce(&mut World) + Send>>,
     log_messages: &mut Vec<String>,
     _resizing_entity: &mut Option<Entity>,
@@ -322,9 +329,8 @@ fn render_checkboxes(
             .order(Order::Middle)
             .fixed_pos(Pos2::new(pos.x, pos.y))
             .show(ui.ctx(), |ui| {
-                if edit_mode {
-                    create_edit_frame(ui, selected.selected);
-                }
+                // Always show edit frame in design mode
+                create_edit_frame(ui, selected.selected);
                 
                 let mut checked = checkbox.checked;
                 let label_text = if checkbox.font_size > 0.0 {
@@ -351,19 +357,31 @@ fn render_checkboxes(
                 response
             });
         
-        if edit_mode {
+        // Always enabled in design mode
+        if true {
             // Handle dragging directly on the element response
             let drag_response = area_response.inner.interact(egui::Sense::drag());
             if drag_response.dragged() {
                 let delta = drag_response.drag_delta();
-                let entity_copy = entity;
-                updates.push(Box::new(move |world: &mut World| {
-                    if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity_copy) {
-                        let new_pos = Pos2::new(pos.x + delta.x, pos.y + delta.y);
-                        pos.x = new_pos.x;
-                        pos.y = new_pos.y;
-                    }
-                }));
+                let snap_enabled = grid_settings.snap_enabled;
+                let spacing = grid_settings.spacing_pixels;
+                
+                // If this element is selected, move all selected elements
+                if selected.selected {
+                    updates.push(Box::new(move |world: &mut World| {
+                        move_selected_elements(world, delta, snap_enabled, spacing);
+                    }));
+                } else {
+                    // Move only this element
+                    let entity_copy = entity;
+                    updates.push(Box::new(move |world: &mut World| {
+                        if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity_copy) {
+                            let new_pos = Pos2::new(pos.x + delta.x, pos.y + delta.y);
+                            pos.x = new_pos.x;
+                            pos.y = new_pos.y;
+                        }
+                    }));
+                }
             }
             if drag_response.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
@@ -375,8 +393,7 @@ fn render_checkboxes(
 fn render_radio_buttons(
     ui: &mut Ui,
     world: &mut World,
-    edit_mode: bool,
-    _grid_settings: &GridSettings,
+    grid_settings: &GridSettings,
     updates: &mut Vec<Box<dyn FnOnce(&mut World) + Send>>,
     log_messages: &mut Vec<String>,
     _resizing_entity: &mut Option<Entity>,
@@ -390,9 +407,8 @@ fn render_radio_buttons(
             .order(Order::Middle)
             .fixed_pos(Pos2::new(pos.x, pos.y))
             .show(ui.ctx(), |ui| {
-                if edit_mode {
-                    create_edit_frame(ui, selected.selected);
-                }
+                // Always show edit frame in design mode
+                create_edit_frame(ui, selected.selected);
                 
                 let label_text = if radio_button.font_size > 0.0 {
                     egui::RichText::new(&radio_button.label).size(radio_button.font_size)
@@ -422,19 +438,31 @@ fn render_radio_buttons(
                 response
             });
         
-        if edit_mode {
+        // Always enabled in design mode
+        if true {
             // Handle dragging directly on the element response
             let drag_response = area_response.inner.interact(egui::Sense::drag());
             if drag_response.dragged() {
                 let delta = drag_response.drag_delta();
-                let entity_copy = entity;
-                updates.push(Box::new(move |world: &mut World| {
-                    if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity_copy) {
-                        let new_pos = Pos2::new(pos.x + delta.x, pos.y + delta.y);
-                        pos.x = new_pos.x;
-                        pos.y = new_pos.y;
-                    }
-                }));
+                let snap_enabled = grid_settings.snap_enabled;
+                let spacing = grid_settings.spacing_pixels;
+                
+                // If this element is selected, move all selected elements
+                if selected.selected {
+                    updates.push(Box::new(move |world: &mut World| {
+                        move_selected_elements(world, delta, snap_enabled, spacing);
+                    }));
+                } else {
+                    // Move only this element
+                    let entity_copy = entity;
+                    updates.push(Box::new(move |world: &mut World| {
+                        if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity_copy) {
+                            let new_pos = Pos2::new(pos.x + delta.x, pos.y + delta.y);
+                            pos.x = new_pos.x;
+                            pos.y = new_pos.y;
+                        }
+                    }));
+                }
             }
             if drag_response.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
@@ -446,8 +474,7 @@ fn render_radio_buttons(
 fn render_group_boxes(
     ui: &mut Ui,
     world: &mut World,
-    edit_mode: bool,
-    _grid_settings: &GridSettings,
+    grid_settings: &GridSettings,
     updates: &mut Vec<Box<dyn FnOnce(&mut World) + Send>>,
     _log_messages: &mut Vec<String>,
     _resizing_entity: &mut Option<Entity>,
@@ -461,9 +488,8 @@ fn render_group_boxes(
             .order(Order::Middle)
             .fixed_pos(Pos2::new(pos.x, pos.y))
             .show(ui.ctx(), |ui| {
-                if edit_mode {
-                    create_edit_frame(ui, selected.selected);
-                }
+                // Always show edit frame in design mode
+                create_edit_frame(ui, selected.selected);
                 
                 let title_text = if group_box.font_size > 0.0 {
                     egui::RichText::new(&group_box.label).size(group_box.font_size)
@@ -479,19 +505,31 @@ fn render_group_boxes(
                 response
             });
         
-        if edit_mode {
+        // Always enabled in design mode
+        if true {
             // Handle dragging directly on the element response
             let drag_response = area_response.inner.interact(egui::Sense::drag());
             if drag_response.dragged() {
                 let delta = drag_response.drag_delta();
-                let entity_copy = entity;
-                updates.push(Box::new(move |world: &mut World| {
-                    if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity_copy) {
-                        let new_pos = Pos2::new(pos.x + delta.x, pos.y + delta.y);
-                        pos.x = new_pos.x;
-                        pos.y = new_pos.y;
-                    }
-                }));
+                let snap_enabled = grid_settings.snap_enabled;
+                let spacing = grid_settings.spacing_pixels;
+                
+                // If this element is selected, move all selected elements
+                if selected.selected {
+                    updates.push(Box::new(move |world: &mut World| {
+                        move_selected_elements(world, delta, snap_enabled, spacing);
+                    }));
+                } else {
+                    // Move only this element
+                    let entity_copy = entity;
+                    updates.push(Box::new(move |world: &mut World| {
+                        if let Some(mut pos) = world.get_mut::<UiElementPosition>(entity_copy) {
+                            let new_pos = Pos2::new(pos.x + delta.x, pos.y + delta.y);
+                            pos.x = new_pos.x;
+                            pos.y = new_pos.y;
+                        }
+                    }));
+                }
             }
             if drag_response.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
@@ -659,6 +697,9 @@ pub fn render_tab_content_old(ui: &mut Ui, world: &mut World, tab: &Tab) {
         }
         TabKind::Inspector => {
             ui.label("Inspector");
+        }
+        TabKind::Preview => {
+            ui.label("Preview");
         }
     }
 }

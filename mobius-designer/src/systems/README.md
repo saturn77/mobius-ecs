@@ -1,6 +1,6 @@
-# Rendering Systems
+# Systems
 
-This module contains the rendering systems for the Mobius Designer UI framework.
+This module contains the systems for the Mobius Designer UI framework, including rendering and spatial organization functionality.
 
 ## Main Components
 
@@ -85,3 +85,49 @@ The rendering system is designed to work with the Bevy ECS architecture:
 - Systems query and render components
 - World updates are batched for performance
 - Mutable borrows are handled safely
+
+## Spatial Organization
+
+### `distribution.rs`
+Contains functions for organizing UI elements spatially:
+
+#### Distribution Functions
+- **`distribute_items_vertically`**: Distributes selected elements vertically with equal spacing based on `DistributionSettings.vertical_spacing`
+- **`distribute_items_horizontally`**: Distributes selected elements horizontally with equal spacing based on `DistributionSettings.horizontal_spacing`
+
+#### Alignment Functions
+- **`align_selected_elements_left`**: Aligns all selected elements to the leftmost position
+- **`align_selected_elements_right`**: Aligns all selected elements to the rightmost edge (considering element width)
+- **`align_selected_elements_top`**: Aligns all selected elements to the topmost position
+- **`align_selected_elements_bottom`**: Aligns all selected elements to the bottommost edge (considering element height)
+
+### Features
+- Works with any selected UI elements using `UiElementSelected` component
+- Maintains element sizes while adjusting positions
+- Provides visual feedback through the designer log system
+- Requires at least 2 elements for distribution operations
+
+### Usage
+
+```rust
+use mobius_designer::systems::distribution::*;
+
+// Distribute selected elements vertically
+distribute_items_vertically(world, &distribution_settings);
+
+// Align selected elements to the left
+align_selected_elements_left(world);
+
+// Distribute horizontally with custom spacing
+let settings = DistributionSettings {
+    horizontal_spacing: 50.0,
+    vertical_spacing: 30.0,
+};
+distribute_items_horizontally(world, &settings);
+```
+
+### Requirements
+- Elements must have `UiElementPosition` component for positioning
+- Elements must have `UiElementSelected` component with `selected: true` to be affected
+- Right/bottom alignment requires `UiElementSize` component for proper edge calculation
+- Distribution operations require at least 2 selected elements
