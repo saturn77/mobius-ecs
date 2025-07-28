@@ -6,6 +6,9 @@ use std::collections::HashMap;
 use chrono::Local;
 use chrono_tz::Tz;
 
+// Morphorm bridge module
+pub mod morphorm_bridge;
+
 // =============================================================================
 // Core Components and Systems (Simplified for MVP)
 // =============================================================================

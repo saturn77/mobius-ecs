@@ -2298,7 +2298,17 @@ dependencies = [
  "egui_tool_windows",
  "env_logger",
  "image",
+ "morphorm",
  "serde",
+]
+
+[[package]]
+name = "morphorm"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1da952390ad9f41372f75f451fbca41436c82a90bedaf1fbfae462a747b031b"
+dependencies = [
+ "smallvec",
 ]
 
 [[package]]
