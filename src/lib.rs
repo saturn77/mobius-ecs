@@ -8,6 +8,14 @@ use chrono_tz::Tz;
 
 // Morphorm bridge module
 pub mod morphorm_bridge;
+pub mod morphorm_ecs;
+pub mod simple_morphorm;
+
+// Taffy + egui_dock ECS module
+pub mod taffy_dock_ecs_v2;
+pub mod taffy_dock_ecs_v3;
+pub mod taffy_dock_ecs_v4;
+pub mod simple_flex_dock;
 
 // =============================================================================
 // Core Components and Systems (Simplified for MVP)

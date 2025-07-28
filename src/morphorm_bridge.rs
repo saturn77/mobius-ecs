@@ -104,7 +104,7 @@ impl LayoutNode {
 /// A bridge between Morphorm layout concepts and egui
 pub struct MorphormLayoutBridge {
     /// The root layout node
-    root: LayoutNode,
+    pub root: LayoutNode,
     /// Maps node indices to their computed bounds
     node_bounds: HashMap<usize, Rect>,
     /// Counter for node IDs
@@ -185,7 +185,7 @@ impl MorphormLayoutBridge {
     fn update_node_bounds(&mut self) {
         self.node_bounds.clear();
         
-        // Store child bounds
+        // Store child bounds - simple flat approach for now
         for (i, child) in self.root.children.iter().enumerate() {
             let rect = Rect::from_min_size(
                 egui::pos2(child.computed_x, child.computed_y),

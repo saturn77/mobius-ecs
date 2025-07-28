@@ -19,6 +19,7 @@ chrono-tz = "0.10.3"
 image = "0.25.6"
 egui_tool_windows = "0.1.3"
 morphorm = "0.7"
+egui_taffy = "0.8"
 
 
 [dev-dependencies]
@@ -35,3 +36,39 @@ path = "examples/demo.rs"
 [[example]]
 name = "morphorm_demo"
 path = "examples/morphorm_demo.rs"
+
+[[example]]
+name = "morphorm_ecs_demo"
+path = "examples/morphorm_ecs_demo.rs"
+
+[[example]]
+name = "simple_morphorm_demo"
+path = "examples/simple_morphorm_demo.rs"
+
+[[example]]
+name = "standalone_simple_demo"
+path = "examples/standalone_simple_demo.rs"
+
+[[example]]
+name = "taffy_dock_demo"
+path = "examples/taffy_dock_demo.rs"
+
+[[example]]
+name = "taffy_dock_v2_demo"
+path = "examples/taffy_dock_v2_demo.rs"
+
+[[example]]
+name = "taffy_dock_v3_demo"
+path = "examples/taffy_dock_v3_demo.rs"
+
+[[example]]
+name = "taffy_dock_v4_demo"
+path = "examples/taffy_dock_v4_demo.rs"
+
+[[example]]
+name = "simple_flex_demo"
+path = "examples/simple_flex_demo.rs"
+
+[[example]]
+name = "true_flex_demo"
+path = "examples/true_flex_demo.rs"

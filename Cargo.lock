@@ -1274,6 +1274,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui_taffy"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a9dec5c88abe3ac630b16ce85cc122e859f629935cbf9ed72f01a7f74f3ea82"
+dependencies = [
+ "egui 0.32.0",
+ "log",
+ "parking_lot",
+ "stackbox",
+ "taffy",
+]
+
+[[package]]
 name = "egui_tool_windows"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1780,6 +1793,12 @@ checksum = "2c4ee00b289aba7a9e5306d57c2d05499b2e5dc427f84ac708bd2c090212cf3e"
 dependencies = [
  "gl_generator",
 ]
+
+[[package]]
+name = "grid"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36119f3a540b086b4e436bb2b588cf98a68863470e0e880f4d0842f112a3183a"
 
 [[package]]
 name = "half"
@@ -2295,6 +2314,7 @@ dependencies = [
  "egui 0.32.0",
  "egui_dock",
  "egui_extras",
+ "egui_taffy",
  "egui_tool_windows",
  "env_logger",
  "image",
@@ -3503,6 +3523,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
+name = "stackbox"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "719cc368f443f1b8b4e9abfe8c1444d1f14341ce5fa9c9e6c59e456837523d0d"
+dependencies = [
+ "paste",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3569,6 +3598,18 @@ dependencies = [
  "pkg-config",
  "toml",
  "version-compare",
+]
+
+[[package]]
+name = "taffy"
+version = "0.7.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab4f4d046dd956a47a7e1a2947083d7ac3e6aa3cfaaead36173ceaa5ab11878c"
+dependencies = [
+ "arrayvec",
+ "grid",
+ "serde",
+ "slotmap",
 ]
 
 [[package]]
